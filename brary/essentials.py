@@ -6,7 +6,8 @@ from colorama import Style, Fore
 
 from .location import *
 from .space import *
-class GamePlayerManager:
+
+class ScriptHandler:
     def __init__(self) -> None:
         ...
     def add_class(self, cls: type):
@@ -14,11 +15,6 @@ class GamePlayerManager:
             f"{cls.__name__.capitalize()}Class": cls,
             cls.__name__.lower(): cls()
         }
-    @classmethod
-    def setup(cls) -> "GamePlayerManager":
-        gpm: GamePlayerManager = cls()
-        gpm.add_class(GamePlayerManager.create_class("Board"))
-        return gpm
     @staticmethod
     def create_class_from_str(name: str, s: str) -> type:
         s = "..." if not s else s
@@ -36,17 +32,16 @@ class {name}:
         scripts_path: Path = Path(os.getcwd()) / "scripts"
         file_path: Path = scripts_path / name
         if not scripts_path.exists():
-            raise FileNotFoundError(
-                f"gpm setup() requires a scripts directory in your current working directory ({os.getcwd()}). you can run 'mkdir {scripts_path}' to create it.")
+            raise FileNotFoundError(f"sh setup() requires a scripts directory in your current working directory ({os.getcwd()}). you can run 'mkdir {scripts_path}' to create it.")
         if not file_path.exists():
-            raise FileNotFoundError(f"gpm setup() requires {name} script in {scripts_path}")
+            raise FileNotFoundError(f"sh setup() requires {name} script in {scripts_path}")
         with file_path.open() as file:
             code: str = file.read()
-        return GamePlayerManager.create_class_from_str(name, code)
+        return ScriptHandler.create_class_from_str(name, code)
 class Game:
     def __init__(self, board: "Board") -> None:
         self.board: "Board" = board
-        self.player: object = GamePlayerManager.create_class("Player")
+        self.player: object = ScriptHandler.create_class("Player") # TODO: add player inventory from brary.economy
         self.piston: Piston = board.new(Piston)
     def loop(self, until: Callable | bool, player_tag: str = "Player") -> None:
         while not (until() if callable(until) else until):
@@ -64,8 +59,9 @@ class Game:
                     pushes_after: int = self.piston.pushes
                     elapsed_pushes: int = pushes_after - pushes_before
                     if elapsed_pushes == 0:
-                        print(f"{Fore.RED}Cannot go there!{Style.RESET_ALL}")
+                        print(f"{Fore.RED}cannot go there!{Style.RESET_ALL}")
                         time.sleep(0.4)
+            # TODO: add more commands
 class Board:
     def __init__(self, size: LocationArray, bg: TileTexture) -> None:
         self.size: LocationArray = size
@@ -73,8 +69,8 @@ class Board:
         self.bg: TileTexture = bg
     @classmethod
     def setup(cls) -> "Board":
-        gpm: GamePlayerManager = GamePlayerManager.setup()
-        board: gpm.BoardClass = gpm.board
+        sh: ScriptHandler = ScriptHandler()
+        board: sh.BoardClass = sh.create_class("Board")
         return cls(LocationArray(LocationX(board.W), LocationY(board.H)), TileTexture(board.T, ColorObject(board.C)))
     @staticmethod
     def generate_random_space_id() -> int:
@@ -174,7 +170,7 @@ class Board:
     def create(self, tag: str, name: str | None = None) -> object:
         """name parameter defaults to tag"""
         name = tag if name is None else name
-        space_cls: type = GamePlayerManager.create_class(name)
+        space_cls: type = ScriptHandler.create_class(name)
         space_id: int = self.generate_random_space_id()
         class new_space_cls(space_cls):
             id = space_id
