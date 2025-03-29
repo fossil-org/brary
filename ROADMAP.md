@@ -37,15 +37,23 @@
 - one-time payments (`otp`) (+)
 - taxes (+)
 
+## 1.2: MJ EX - experimental economy update part 2/? (29.3.2025)
+- this release is **experimental** and **unfinished**
+- economy script handler support (+)
+- `.setup` initializers to every economy class (+)
+- player inventory accessible with the `i` command in-game
+- - player inventory also shows balance
+- - add a player inventory with `game.player.inventory = ItemInventory.setup()`
+- - enable/disable viewing the inventory with `game.player.inventory_enabled` (disabled by default but enabled once you add an inventory)
+
 ## planned:
+- `ECONOMY.md` file with a tutorial and help to create/configure the economy in your game
 - tax pay missed penalty (+)
 - debt (+)
 - tax priority levels (a wallet with tax priority (tp) 3 does not pay taxes with tp 2 and lower, but does pay 3 and higher. default level for wallets would be 0, and for taxes would be 1, wallet tp can be -1 for infinite tp (will not pay any taxes except -1 tp taxes)) (+)
 - income (+)
 - ways to earn money (+)
-- board render can show current balance (+)
 - item shops (+)
-- economy script handler support (+)
 - economy integrated in the `essentials` module (game) (+)
 - advanced support in handbook
 - expand handbook (+)

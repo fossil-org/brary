@@ -17,18 +17,30 @@ class ScriptHandler:
         }
     @staticmethod
     def create_class_from_str(name: str, s: str) -> type:
+        class_name: str = name.replace("-", "_")
         s = "..." if not s else s
         lns: list[str] = f"""
 from brary import *
-class {name}:
+class {class_name}:
     def __getattr__(self, name: str) -> None:
         raise AttributeError(f"attempted to retrieve {name} attribute '{{name}}', but it is not defined in the {name} script.")
         """.strip().split("\n") + [f"    {ln}" for ln in s.split("\n")]
         s = "\n".join(lns)
         exec(s)
-        return locals()[name]
+        return locals()[class_name]()
     @staticmethod
     def create_class(name: str) -> type:
+        new_name: str = ""
+        set_upper: bool = False
+        for char in name:
+            if char == " ":
+                set_upper = True
+            elif set_upper:
+                new_name += char.upper()
+                set_upper = False
+            else:
+                new_name += char
+        name = new_name
         scripts_path: Path = Path(os.getcwd()) / "scripts"
         file_path: Path = scripts_path / name
         if not scripts_path.exists():
@@ -41,10 +53,18 @@ class {name}:
 class Game:
     def __init__(self, board: "Board") -> None:
         self.board: "Board" = board
-        self.player: object = ScriptHandler.create_class("Player") # TODO: add player inventory from brary.economy
+        self.player: object = ScriptHandler.create_class("Player")
+        self.player.inventory_enabled = True
         self.piston: Piston = board.new(Piston)
+        self.tos: "list[object]" = [] # tick object list
+    def nto(self, cls: type, *args: Any, **kwargs: Any) -> None: # new tick object
+        obj: cls = cls(*args, **kwargs)
+        self.tos.append(obj)
+        return obj
     def loop(self, until: Callable | bool, player_tag: str = "Player") -> None:
         while not (until() if callable(until) else until):
+            for obj in self.tos:
+                obj.tick()
             os.system("cls" if os.name == "nt" else "clear")
             print(self.board.render())
             try:
@@ -61,7 +81,18 @@ class Game:
                     if elapsed_pushes == 0:
                         print(f"{Fore.RED}cannot go there!{Style.RESET_ALL}")
                         time.sleep(0.4)
-            # TODO: add more commands
+            elif q == "i":
+                if not hasattr(self.player, "inventory") or not self.player.inventory_enabled:
+                    print(f"{Fore.RED}inventory unavailable!{Style.RESET_ALL}")
+                    time.sleep(0.4)
+                    continue
+                print(f"{Fore.GREEN}inventory:{Style.RESET_ALL}")
+                print(f"1. {self.player.inventory.wallet}")
+                print(*([f"{i}. {item.name}" for i, item in enumerate(self.player.inventory.items, start=2)] or [f"{Fore.LIGHTBLACK_EX}...nothing in inventory...{Style.RESET_ALL}"]), sep="\n")
+                try:
+                    q2: str = input(f"{Fore.LIGHTBLACK_EX}press <return> to close inventory or type command here: {Style.RESET_ALL}")
+                except (KeyboardInterrupt, EOFError):
+                    return
 class Board:
     def __init__(self, size: LocationArray, bg: TileTexture) -> None:
         self.size: LocationArray = size
@@ -70,7 +101,7 @@ class Board:
     @classmethod
     def setup(cls) -> "Board":
         sh: ScriptHandler = ScriptHandler()
-        board: sh.BoardClass = sh.create_class("Board")
+        board: object = sh.create_class("Board")
         return cls(LocationArray(LocationX(board.W), LocationY(board.H)), TileTexture(board.T, ColorObject(board.C)))
     @staticmethod
     def generate_random_space_id() -> int:
@@ -172,11 +203,11 @@ class Board:
         name = tag if name is None else name
         space_cls: type = ScriptHandler.create_class(name)
         space_id: int = self.generate_random_space_id()
-        class new_space_cls(space_cls):
+        class new_space_cls(space_cls.__class__):
             id = space_id
             def rm(self1):
                 self.rm_by_id(space_id)
-        space: space_cls = new_space_cls()
+        space: new_space_cls = new_space_cls() # NOQA
         location_x: int = space.X
         location_y: int = space.Y
         texture: str = space.T
