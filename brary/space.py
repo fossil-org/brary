@@ -13,15 +13,14 @@ class ColorObject:
         if color == "reset":
             color = str(Style.RESET_ALL)
         elif color.startswith("ansi") and color.endswith("m"):
-            ansi_codes: list[str] = color.removeprefix("ansi").split("m")
+            ansi_codes: list[str] = color.removeprefix("ansi").removesuffix("m").split("m")
             self.color = eval(rf"'\033[{';'.join(ansi_codes)}m'")
         else:
             color = color.upper()
             if not hasattr(Fore, color):
                 closest: list[str] = get_close_matches(color, Fore.__dict__)
                 raise ValueError(f"no color named {color}.{' did you mean: \''+closest[0]+'\'' if closest else ''}")
-            color = str(getattr(Fore, color))
-        self.color: str = color
+            self.color: str = str(getattr(Fore, color))
     def apply(self, string: str) -> str:
         return f"{self.color}{string}{Style.RESET_ALL}"
 class _ColorClass:

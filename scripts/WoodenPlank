@@ -1,4 +1,5 @@
 D = "Basic wooden plank for crafting"
 E = "It's just a wooden plank."
 P = 5.0
+V = "USD"
 C = Color.ansi38m2m139m69m19m

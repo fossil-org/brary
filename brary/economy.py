@@ -45,7 +45,7 @@ class TaxSystem:
 
 class OneTimePayment(TaxSystem):
     def __init__(self, listing: "ShopItemListing") -> None:
-        super().__init__(f"purchased {listing.item.name}", listing.item.description, listing.price, listing.color, times_effective=1)
+        super().__init__(f"purchased {listing.item.name}", listing.item.description, listing.price.amount, listing.color, times_effective=1)
 
 class Wallet:
     def __init__(self, currency: Currency, amount: float, taxes: list[TaxSystem] | None = None, tp: int = 0) -> None:
@@ -108,7 +108,7 @@ class Item:
     def __init__(self, name: str, description: str, effect: Callable | str) -> None:
         self.name: str = name
         self.description: str = description
-        self.effect: Callable = effect if isinstance(effect, Callable) else lambda: print(effect)
+        self.effect: Callable = lambda _: print(effect) if isinstance(effect, str) else effect
     @classmethod
     def setup(cls, name: str) -> "Item":
         sh: ScriptHandler = ScriptHandler()
@@ -148,18 +148,18 @@ class ShopItemListing:
         self.price: Wallet = price
         self.color: "ColorObject" = color
     @classmethod
-    def create_item(cls, name: str, description: str, effect: Callable, price: float, color: "ColorObject") -> "ShopItemListing":
-        return cls(Item(name, description, effect), price, color)
+    def create_item(cls, name: str, description: str, effect: Callable, price: float, currency: Currency, color: "ColorObject") -> "ShopItemListing":
+        return cls(Item(name, description, effect), Wallet(currency, price), color)
     @classmethod
-    def from_function(cls, price: float, color: "ColorObject") -> Callable:
+    def from_function(cls, price: float, currency: Currency, color: "ColorObject") -> Callable:
         def wrapper1(function: Callable) -> "ShopItemListing":
-            return cls.create_item(function.__name__.replace("_", " "), function.__doc__, function, price, color)
+            return cls.create_item(function.__name__.replace("_", " "), function.__doc__, function, price, currency, color)
         return wrapper1
     @classmethod
     def setup(cls, name: str) -> "ShopItemListing":
         sh: ScriptHandler = ScriptHandler()
         listing: object = sh.create_class(name)
-        return cls.create_item(listing.N if hasattr(listing, "N") else name, listing.D, listing.E, listing.P, listing.C)
+        return cls.create_item(listing.N if hasattr(listing, "N") else name, listing.D, listing.E, listing.P, Currency.setup(listing.V), listing.C)
 
     def __str__(self) -> str:
         return (f"{self.color.apply(self.item.name)}\n"

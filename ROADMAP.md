@@ -68,6 +68,12 @@
 - `MJ EX 1.3`
 - bug fixes
 - more testing
+- ansi colors with `Color.ansi<codes>m` and `Color.brown`
+
+# MN PR 2.1 - public release 2.1
+- fixed ansi colors
+- added sign and color to item listings
+- other bug fixes
 
 ## planned:
 - tax pay missed penalty (+)
