@@ -1,4 +1,3 @@
-W= 16
-H= 8
-T= '.'
-C= 'grey'
+W, H = Sm@16
+T = "."
+C = Color.grey

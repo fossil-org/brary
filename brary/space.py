@@ -1,10 +1,27 @@
+from difflib import get_close_matches
+
 from .location import *
 from .essentials import *
 
 class ColorObject:
     def __init__(self, color: str) -> None:
-        color = "LIGHTBLACK_EX" if color.lower() in ["grey", "gray"] else color
-        self.color: str = getattr(Fore, color.upper())
+        color = str(color).lower()
+        if color in ["grey", "gray"]:
+            color = "LIGHTBLACK_EX"
+        if color == "brown":
+            color = "ansi38m2m139m69m19m"
+        if color == "reset":
+            color = str(Style.RESET_ALL)
+        elif color.startswith("ansi") and color.endswith("m"):
+            ansi_codes: list[str] = color.removeprefix("ansi").split("m")
+            self.color = eval(rf"'\033[{';'.join(ansi_codes)}m'")
+        else:
+            color = color.upper()
+            if not hasattr(Fore, color):
+                closest: list[str] = get_close_matches(color, Fore.__dict__)
+                raise ValueError(f"no color named {color}.{' did you mean: \''+closest[0]+'\'' if closest else ''}")
+            color = str(getattr(Fore, color))
+        self.color: str = color
     def apply(self, string: str) -> str:
         return f"{self.color}{string}{Style.RESET_ALL}"
 class _ColorClass:
@@ -49,3 +66,8 @@ class Piston:
             )
             self.board.rm_by_id(space_id)
             self.pushes += 1
+class _SmClass:
+    def __matmul__(self, other: int | float) -> tuple[int, int]:
+        return int(other), int(other / 2)
+
+Sm = _SmClass()

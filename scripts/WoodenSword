@@ -1,0 +1,5 @@
+D = "Basic wooden sword"
+def E(_, game):
+    "You swung your sword."
+P = 30.0
+C = Color.ansi38m2m139m69m19m

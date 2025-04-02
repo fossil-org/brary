@@ -21,29 +21,38 @@ class Currency:
         return (self.color.apply if color else str)(f"{self.sign if sign else ''}{number}{' '+self.name if name else ''}")
 
 class TaxSystem:
-    def __init__(self, name: str, description: str, amount: str, color: "ColorObject", hidden: bool = False, every_x_ticks: int = 1, times_effective: int = -1):
+    def __init__(self, name: str, description: str, amount: str, color: "ColorObject", tp: int = 0, hidden: bool = False, every_x_ticks: int = 1, times_effective: int = -1):
         self.name: str = name
         self.description: str = description
         self.amount: str = f"round({amount})"
         self.color: "ColorObject" = color
+        self.tp: int = tp
         self.hidden: bool = hidden
         self.every_x_ticks: int = every_x_ticks
         self.times_effective: int = times_effective
+        self.times_unpaid: int = 0
     @classmethod
     def setup(cls, name: str) -> "TaxSystem":
         sh: ScriptHandler = ScriptHandler()
         tax_system: object = sh.create_class(name)
         return cls(name, tax_system.D, tax_system.A, tax_system.C, tax_system.H, tax_system.X, tax_system.F)
+    def when_unpaid_dno(self) -> None: # dno = do not overwrite (in class children)
+        self.times_effective += 1
+        self.unpaid()
+    def unpaid(self) -> None:
+        print(f"{Fore.RED}insufficient funds!{Style.RESET_ALL}")
+        exit(1)
 
 class OneTimePayment(TaxSystem):
     def __init__(self, listing: "ShopItemListing") -> None:
         super().__init__(f"purchased {listing.item.name}", listing.item.description, listing.price, listing.color, times_effective=1)
 
 class Wallet:
-    def __init__(self, currency: Currency, amount: float, taxes: list[TaxSystem] | None = None) -> None:
+    def __init__(self, currency: Currency, amount: float, taxes: list[TaxSystem] | None = None, tp: int = 0) -> None:
         self.currency: Currency = currency
         self.amount: float = amount
         self.taxes: list[list[TaxSystem, int, int]] = [] # [tax, tick, times_applied]
+        self.tp: int = tp
         if taxes:
             for tax in taxes:
                 self.add_tax(tax)
@@ -62,21 +71,23 @@ class Wallet:
             return False
     def round(self) -> None:
         self.amount = round(self.amount)
-    def tick(self) -> None:
+    def tick(self, *, delay: float = 1.0) -> None:
         remove: list[int] = []
         for i, (tax, tick, times_applied) in enumerate(self.taxes):
+            if tax.tp < self.tp or (tax.tp != -1 and self.tp == -1):
+                continue
             if tax.times_effective == times_applied:
                 remove.append(i)
                 continue
             if tick == tax.every_x_ticks:
-                self.tax(tax)
+                self.tax(tax, delay=delay)
                 self.taxes[i][1] = 1
                 self.taxes[i][2] += 1
             else:
                 self.taxes[i][1] += 1
         for i in remove:
             self.taxes.pop(i)
-    def tax(self, tax: TaxSystem) -> None:
+    def tax(self, tax: TaxSystem, *, delay: float = 1.0) -> None:
         x = self.amount
         amount = eval(tax.amount)
         if self.amount < amount:
@@ -85,7 +96,7 @@ class Wallet:
         tick = 1
         if not tax.hidden:
             print(tax.color.apply(f"-{self.currency.apply(amount, color=False)}, ({tax.name}: {tax.description})"))
-            time.sleep(1)
+            time.sleep(delay)
     def add_tax(self, tax: TaxSystem) -> None:
         self.taxes.append([tax, 1, 0])
     def __str__(self, **kwargs: Any) -> str:
@@ -94,17 +105,18 @@ class Wallet:
 # item:
 
 class Item:
-    def __init__(self, name: str, description: str, effect: Callable) -> None:
+    def __init__(self, name: str, description: str, effect: Callable | str) -> None:
         self.name: str = name
         self.description: str = description
-        self.effect: Callable = effect
+        self.effect: Callable = effect if isinstance(effect, Callable) else lambda: print(effect)
     @classmethod
     def setup(cls, name: str) -> "Item":
         sh: ScriptHandler = ScriptHandler()
         item: object = sh.create_class(name)
-        return cls(name, listing.D, listing.E)
-    def use(self) -> None:
-        self.effect()
+        return cls(listing.N, listing.D, listing.E)
+    def use(self, game: "Game", *, delay: float = 2.0) -> None:
+        self.effect(game)
+        time.sleep(delay)
 class ItemInventory:
     def __init__(self, wallet: Wallet, items: list[Item] | None = None) -> None:
         self.wallet: Wallet = wallet
@@ -121,9 +133,9 @@ class ItemInventory:
         if if_not_found:
             return if_not_found
         raise ValueError(f"no item named '{name}' found in the inventory.")
-    def add(self, item: Item) -> None:
+    def add(self, item: Item, *, delay: float = 1.0) -> None:
         print(f"{Fore.MAGENTA}new item received: {item.name}{Style.RESET_ALL}")
-        time.sleep(1)
+        time.sleep(delay)
         self.items.append(item)
     def remove(self, item: Item) -> None:
         for i, l_item in enumerate(self.items):
@@ -147,21 +159,56 @@ class ShopItemListing:
     def setup(cls, name: str) -> "ShopItemListing":
         sh: ScriptHandler = ScriptHandler()
         listing: object = sh.create_class(name)
-        return cls.create_item(name, listing.D, listing.E, listing.P, listing.C)
+        return cls.create_item(listing.N if hasattr(listing, "N") else name, listing.D, listing.E, listing.P, listing.C)
 
     def __str__(self) -> str:
-        return (f"{self.color.apply(self.item.name)}"
-                f"- {'\n- '.join(self.item.description.split('\n'))}"
-                f"- costs: {self.wallet}")
-    def buy(self, inventory: ItemInventory, amount: int = 1) -> None:
+        return (f"{self.color.apply(self.item.name)}\n"
+                f"- {'\n- '.join(self.item.description.split('\n'))}\n"
+                f"- costs: {self.price}")
+    def buy(self, inventory: ItemInventory, amount: int = 1, *, delay: float = 1.0) -> None:
         otp: OneTimePayment = OneTimePayment(self)
-        inventory.wallet.add_tax(otp)
         try:
-            inventory.wallet.tick()
+            inventory.wallet.tax(otp, delay=delay)
         except ValueError:
-            print(f"{Fore.RED}insufficient funds!{Style.RESET_ALL}")
-            time.sleep(1)
-            inventory.wallet.taxes.pop()
+            otp.when_unpaid()
+            time.sleep(delay)
             return
-        inventory.wallet.taxes.pop()
-        inventory.add(self.item)
+        inventory.add(self.item, delay=delay)
+
+class Shop:
+    def __init__(self, name: str, color: "ColorObject", items: list[ShopItemListing]) -> None:
+        self.name: str = name
+        self.color: "ColorObject" = color
+        self.items: list[ShopItemListing] = items
+    @classmethod
+    def setup(cls, name: str) -> "Shop":
+        sh: ScriptHandler = ScriptHandler()
+        shop: object = sh.create_class(name)
+        return cls(name, shop.C, [ShopItemListing.setup(i) for i in shop.I])
+    def display(self, *, delay: float = 1.0) -> ShopItemListing:
+        print(self.color.apply(f"{self.name}:"))
+        for i, item in enumerate(self.items, start=1):
+            print(f"{Fore.GREEN}{i}. {Style.RESET_ALL}{item}")
+        while True:
+            try:
+                choice: str | int = input("choose an item (1-" + str(len(self.items)) + ") or 'c' to cancel: ").lower()
+                if choice == "c":
+                    print(f"{Fore.LIGHTBLACK_EX}operation cancelled{Style.RESET_ALL}")
+                    time.sleep(delay)
+                    return
+                choice = int(choice)
+            except ValueError:
+                print(f"{Fore.RED}invalid choice{Style.RESET_ALL}")
+                continue
+            if 1 <= choice <= len(self.items):
+                return self.items[choice-1]
+            else:
+                print(f"{Fore.RED}invalid choice{Style.RESET_ALL}")
+    def send(self, game: "Game", command: str = "m", enabled: bool = True) -> "Shop":
+        game.new_shop(self, command)
+        game.toggle_shop(self, enabled)
+        return self
+
+def new_item(name: str, shop_listing: bool = True) -> ShopItemListing:
+    item: ShopItemListing = ShopItemListing.setup(name)
+    return item if shop_listing else item.item

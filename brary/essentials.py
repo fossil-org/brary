@@ -56,21 +56,38 @@ class Game:
         self.player: object = ScriptHandler.create_class("Player")
         self.player.inventory_enabled = True
         self.piston: Piston = board.new(Piston)
-        self.tos: "list[object]" = [] # tick object list
+        self.tos: "list[object]" = [] # tick objects
+        self.shops: "list[Shop, str, bool]" = [] # [shop, command, enabled]
     def nto(self, cls: type, *args: Any, **kwargs: Any) -> None: # new tick object
         obj: cls = cls(*args, **kwargs)
         self.tos.append(obj)
         return obj
-    def loop(self, until: Callable | bool, player_tag: str = "Player") -> None:
+    def new_shop(self, shop: "Shop", command: str) -> None:
+        self.shops.append([shop, command, True])
+    def toggle_shop(self, shop: "Shop | int", to: bool | None = None) -> None: # 'to' argument toggles when set to None
+        shop = self.shops[shop] if isinstance(shop, int) else shop
+        for iter_shop in self.shops:
+            if iter_shop[0].name == shop.name:
+                iter_shop[2] = not iter_shop[2] if to is None else to
+    def new_inventory(self, ii_cls: type | None = None) -> None:
+        from .economy import ItemInventory
+
+        ii_cls = ii_cls or ItemInventory
+
+        self.player.inventory = ii_cls.setup()
+    def loop(self, until: Callable | bool = False, player_tag: str = "Player", *, dno_secured: bool = False) -> None:
+        if not dno_secured:
+            try:
+                self.loop(until, player_tag, dno_secured=True)
+            except (KeyboardInterrupt, EOFError):
+                ...
+            return
         while not (until() if callable(until) else until):
             for obj in self.tos:
                 obj.tick()
             os.system("cls" if os.name == "nt" else "clear")
             print(self.board.render())
-            try:
-                q: str = input("> ")
-            except (KeyboardInterrupt, EOFError):
-                return
+            q: str = input("> ")
             if q in list("qweasdzxc"):
                 pushes_before: int = self.piston.pushes
                 try:
@@ -89,10 +106,31 @@ class Game:
                 print(f"{Fore.GREEN}inventory:{Style.RESET_ALL}")
                 print(f"1. {self.player.inventory.wallet}")
                 print(*([f"{i}. {item.name}" for i, item in enumerate(self.player.inventory.items, start=2)] or [f"{Fore.LIGHTBLACK_EX}...nothing in inventory...{Style.RESET_ALL}"]), sep="\n")
-                try:
-                    q2: str = input(f"{Fore.LIGHTBLACK_EX}press <return> to close inventory or type command here: {Style.RESET_ALL}")
-                except (KeyboardInterrupt, EOFError):
-                    return
+                while True:
+                    try:
+                        q2: str | int = input(f"{Fore.LIGHTBLACK_EX}press <return> to close inventory or type command here: {Style.RESET_ALL}").lower()
+                        if q2 == "":
+                            break
+                        q2 = int(q2) - 2
+                        if q2 < 0:
+                            continue
+                    except ValueError:
+                        print(f"{Fore.RED}invalid command{Style.RESET_ALL}")
+                        time.sleep(0.4)
+                        continue
+                    if q2 < len(self.player.inventory.items):
+                        print(f"{Fore.LIGHTBLACK_EX}using {self.player.inventory.items[q2].name}{Style.RESET_ALL}")
+                        self.player.inventory.items[q2].use(self)
+                        break
+            else:
+                if self.player.inventory_enabled:
+                    for shop in self.shops:
+                        if q == shop[1] and shop[2] is True:
+                            item: "ShopItemListing" = shop[0].display()
+                            if item is not None:
+                                item.buy(self.player.inventory)
+                            break
+
 class Board:
     def __init__(self, size: LocationArray, bg: TileTexture) -> None:
         self.size: LocationArray = size
@@ -102,7 +140,7 @@ class Board:
     def setup(cls) -> "Board":
         sh: ScriptHandler = ScriptHandler()
         board: object = sh.create_class("Board")
-        return cls(LocationArray(LocationX(board.W), LocationY(board.H)), TileTexture(board.T, ColorObject(board.C)))
+        return cls(LocationArray(LocationX(board.W), LocationY(board.H)), TileTexture(board.T, board.C))
     @staticmethod
     def generate_random_space_id() -> int:
         return random.randint(0, 999999)

@@ -1,5 +1,0 @@
-D= "A sword that gives life!"
-def E(_):
-    print("You have gained 100 life!")
-P= 300
-C= Color.yellow
