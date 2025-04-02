@@ -10,14 +10,17 @@
 1. items marked with `(-)` are already present in FOSSIL's `py3kit` and will be/were ported and reworked to `brary`
 2. items marked with `(+)` are completely new ideas not present in any other FOSSIL products.
 3. items marked with `(/)` are present in `py3kit` but in a different way. a note will be present after this tag to explain the differences.
-4. `MJ` means major update
-5. `MN` means minor update
-6. `PT` means tiny patch update
-7. `EX` means experimental update
-8. `PR` means public release (ready for production)
-9. `NS` means not significant: not worth migrating versions in production just yet
+4. mfv means multiple-flow versioning
+5. `MJ` means major update
+6. `MN` means minor update
+7. `PT` means tiny patch update
+8. `EX` means experimental update
+9. `PR` means public release (ready for production)
+10. `NS` means not significant: not worth migrating versions in production just yet
 
-## 1.0: MJ PR - first public release (11.3.2025)
+## current mfv flows: `economy.bots`
+
+## MJ PR 1 - first public release (11.3.2025)
 - game loop (-)
 - colors (+)
 - scripts (/): in brary, everything is hosted in scripts rather than just blocks of code
@@ -25,7 +28,7 @@
 - players (-)
 - handbook (+)
 
-## 1.1: MJ EX - experimental economy update part 1/? (28.3.2025)
+## MJ EX 1.1 - experimental economy update part 1/4 (28.3.2025)
 - this release is **experimental** and **unfinished**
 - `GamePlayerManager` is now `ScriptHandler` (-)
 - new `brary.economy` module (beta) (+)
@@ -37,7 +40,7 @@
 - one-time payments (`otp`) (+)
 - taxes (+)
 
-## 1.2: MJ EX - experimental economy update part 2/? (29.3.2025)
+## MJ EX 1.2 - experimental economy update part 2/4 (29.3.2025)
 - this release is **experimental** and **unfinished**
 - economy script handler support (+)
 - `.setup` initializers to every economy class (+)
@@ -47,7 +50,7 @@
 - - enable/disable viewing the inventory with `game.player.inventory_enabled` (disabled by default but enabled once you add an inventory)
 - bug fixes
 
-# 1.3: MJ EX - experimental economy update part 3/? (2.4.2025)
+# MJ EX 1.3 - experimental economy update part 3/4 (2.4.2025)
 - this release is **experimental** and **unfinished**
 - a lot of testing (-)
 - `new_item()` function in `brary.economy` links to `ShopItemListing.setup()` (+)
@@ -59,14 +62,19 @@
 - `Sm@` values for board size (+)
 - learn about board size in `HANDBOOK.md` (+)
 
+# MJ PR 2 - public release 2: the economy update (aka: experimental economy update part 4/4) (2.4.2025)
+- `MJ EX 1.1`
+- `MJ EX 1.2`
+- `MJ EX 1.3`
+- bug fixes
+- more testing
+
 ## planned:
-- `ECONOMY.md` file with a tutorial and help to create/configure the economy in your game
 - tax pay missed penalty (+)
 - debt (+)
 - income (+)
 - ways to earn money (+)
-- economy integrated in the `essentials` module (game) (+)
-- bots (-)
+- bots [coming next update!] (-)
 - game loop commands (-)
 - score (+)
 - game loop output (-)
