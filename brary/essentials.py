@@ -10,13 +10,13 @@ from .space import *
 class ScriptHandler:
     def __init__(self) -> None:
         ...
-    def add_class(self, cls: type):
+    def addClass(self, cls: type):
         self.__dict__ |= {
             f"{cls.__name__.capitalize()}Class": cls,
             cls.__name__.lower(): cls()
         }
     @staticmethod
-    def create_class_from_str(name: str, s: str) -> type:
+    def createClassFromString(name: str, s: str) -> type:
         class_name: str = name.replace("-", "_")
         s = "..." if not s else s
         lns: list[str] = f"""
@@ -29,7 +29,7 @@ class {class_name}:
         exec(s)
         return locals()[class_name]()
     @staticmethod
-    def create_class(name: str) -> type:
+    def createClass(name: str) -> type:
         new_name: str = ""
         set_upper: bool = False
         for char in name:
@@ -49,55 +49,46 @@ class {class_name}:
             raise FileNotFoundError(f"sh setup() requires {name} script in {scripts_path}")
         with file_path.open() as file:
             code: str = file.read()
-        return ScriptHandler.create_class_from_str(name, code)
+        return ScriptHandler.createClassFromString(name, code)
 class Game:
     def __init__(self, board: "Board") -> None:
         self.board: "Board" = board
-        self.player: object = ScriptHandler.create_class("Player")
+        self.player: object = ScriptHandler.createClass("Player")
         self.player.inventory_enabled = True
         self.piston: Piston = board.new(Piston)
         self.tos: "list[object]" = [] # tick objects
         self.shops: "list[Shop, str, bool]" = [] # [shop, command, enabled]
-    def nto(self, cls: type, *args: Any, **kwargs: Any) -> None: # new tick object
-        obj: cls = cls(*args, **kwargs)
+    def nto(self, obj: object) -> None: # new tick object
         self.tos.append(obj)
         return obj
-    def new_shop(self, shop: "Shop", command: str) -> None:
+    def newShop(self, shop: "Shop", command: str) -> None:
         self.shops.append([shop, command, True])
-    def toggle_shop(self, shop: "Shop | int", to: bool | None = None) -> None: # 'to' argument toggles when set to None
+    def toggleShop(self, shop: "Shop | int", to: bool | None = None) -> None: # 'to' argument toggles when set to None
         shop = self.shops[shop] if isinstance(shop, int) else shop
         for iter_shop in self.shops:
             if iter_shop[0].name == shop.name:
                 iter_shop[2] = not iter_shop[2] if to is None else to
-    def new_inventory(self, ii_cls: type | None = None) -> None:
+    def newInventory(self, ii_cls: type | None = None) -> None:
         from .economy import ItemInventory
 
         ii_cls = ii_cls or ItemInventory
-
         self.player.inventory = ii_cls.setup()
-    def loop(self, until: Callable | bool = False, player_tag: str = "Player", *, dno_secured: bool = False) -> None:
+    def loop(self, clear: bool = True, until: Callable | bool = False, player_tag: str = "Player", *, dno_secured: bool = False) -> None:
         if not dno_secured:
             try:
-                self.loop(until, player_tag, dno_secured=True)
+                self.loop(clear, until, player_tag, dno_secured=True)
             except (KeyboardInterrupt, EOFError):
                 ...
             return
         while not (until() if callable(until) else until):
             for obj in self.tos:
                 obj.tick()
-            os.system("cls" if os.name == "nt" else "clear")
+            if clear:
+                os.system("cls" if os.name == "nt" else "clear")
             print(self.board.render())
             q: str = input("> ")
             if q in list("qweasdzxc"):
-                pushes_before: int = self.piston.pushes
-                try:
-                    self.piston.push(self.board.id_by_tag(player_tag), q, self.player.S)
-                except ValueError:
-                    pushes_after: int = self.piston.pushes
-                    elapsed_pushes: int = pushes_after - pushes_before
-                    if elapsed_pushes == 0:
-                        print(f"{Fore.RED}cannot go there!{Style.RESET_ALL}")
-                        time.sleep(0.4)
+                self.piston.push(self.board.idByTag(player_tag), q, self.player.S, cannot_go_there_warning=True)
             elif q == "i":
                 if not hasattr(self.player, "inventory") or not self.player.inventory_enabled:
                     print(f"{Fore.RED}inventory unavailable!{Style.RESET_ALL}")
@@ -139,14 +130,14 @@ class Board:
     @classmethod
     def setup(cls) -> "Board":
         sh: ScriptHandler = ScriptHandler()
-        board: object = sh.create_class("Board")
+        board: object = sh.createClass("Board")
         return cls(LocationArray(LocationX(board.W), LocationY(board.H)), TileTexture(board.T, board.C))
     @staticmethod
-    def generate_random_space_id() -> int:
+    def generateRandomSpaceId() -> int:
         return random.randint(0, 999999)
     def new(self, cls: type) -> Any:
         return cls(self)
-    def state_taken(self, location: LocationArray) -> bool:
+    def stateTaken(self, location: LocationArray) -> bool:
         for state in self.states:
             if LocationArray.compare(state.location, location):
                 return state
@@ -159,12 +150,12 @@ class Board:
             location: LocationArray,
             tag: str,
             texture: TileTexture,
-            override: bool = True
+            overwrite: bool = True
         ) -> None:
             self.board: "Board" = board
-            self.ensure_location(board, location)
-            state: BoardState | False = board.state_taken(location)
-            if not override and state is not False:
+            self.ensureLocationValidity(board, location)
+            state: BoardState | False = board.stateTaken(location)
+            if not overwrite and state is not False:
                 raise ValueError(f"location {location} already taken.")
             for i, state2 in enumerate(board.states):
                 if BoardState.compare(state, state2):
@@ -174,7 +165,7 @@ class Board:
         def fetch(self) -> BoardState:
             return self.__state
         @staticmethod
-        def validate_location(board: "Board", location: LocationArray) -> bool | str:
+        def checkLocationValidity(board: "Board", location: LocationArray) -> bool | str:
             return not any([
                 int(location.x) > int(board.size.x),
                 int(location.y) > int(board.size.y),
@@ -182,69 +173,69 @@ class Board:
                 int(location.y) <= 0
             ])
         @staticmethod
-        def ensure_location(board: "Board", location: LocationArray) -> None:
-            if not Board.StatePlacementOperator.validate_location(board, location):
+        def ensureLocationValidity(board: "Board", location: LocationArray) -> None:
+            if not Board.StatePlacementOperator.checkLocationValidity(board, location):
                 raise ValueError(f"location {location} is out of bounds.")
-    def _look_for(self, formula: str, **vars: Any) -> Any:
+    def lookFor(self, formula: str, **vars: Any) -> Any:
         for i, state in enumerate(self.states):
             if eval(formula, globals() | locals() | vars, {}):
                 return i, state
         return 0, None
 
-    def rm_by_state(self, state: BoardState) -> None:
-        i, state = self._look_for(f"state.space_id == space_id", space_id=state.space_id)
+    def rmByState(self, state: BoardState) -> None:
+        i, state = self.lookFor(f"state.space_id == space_id", space_id=state.space_id)
         if state is None:
             raise ValueError(f"tile with id '{space_id}' not found.")
         self.states.pop(i)
 
     # by id:
 
-    def state_by_id(self, space_id: int) -> BoardState:
-        return self._look_for(f"state.space_id == space_id", space_id=space_id)[1]
-    def location_by_id(self, space_id: int) -> LocationArray:
-        return self.state_by_id(space_id).location
-    def tag_by_id(self, space_id: int) -> LocationArray:
-        return self.state_by_id(space_id).tag
-    def texture_by_id(self, space_id: int) -> LocationArray:
-        return self.state_by_id(space_id).texture
-    def rm_by_id(self, space_id: int) -> None:
-        self.rm_by_state(self.state_by_id(space_id))
+    def stateById(self, space_id: int) -> BoardState:
+        return self.lookFor(f"state.space_id == space_id", space_id=space_id)[1]
+    def locationById(self, space_id: int) -> LocationArray:
+        return self.stateById(space_id).location
+    def tagById(self, space_id: int) -> LocationArray:
+        return self.stateById(space_id).tag
+    def textureById(self, space_id: int) -> LocationArray:
+        return self.stateById(space_id).texture
+    def rmById(self, space_id: int) -> None:
+        self.rmByState(self.stateById(space_id))
 
     # by tag:
 
-    def state_by_tag(self, tag: str) -> BoardState:
-        return self._look_for(f"state.tag == tag", tag=tag)[1]
-    def location_by_tag(self, tag: str) -> LocationArray:
-        return self.state_by_tag(tag).location
-    def id_by_tag(self, tag: str) -> int:
-        return self.state_by_tag(tag).space_id
-    def texture_by_tag(self, tag: str) -> LocationArray:
-        return self.state_by_tag(tag).texture
-    def rm_by_tag(self, tag: str) -> None:
-        self.rm_by_state(self.state_by_tag(tag))
+    def stateByTag(self, tag: str) -> BoardState:
+        return self.lookFor(f"state.tag == tag", tag=tag)[1]
+    def locationByTag(self, tag: str) -> LocationArray:
+        return self.stateByTag(tag).location
+    def idByTag(self, tag: str) -> int:
+        return self.stateByTag(tag).space_id
+    def textureByTag(self, tag: str) -> LocationArray:
+        return self.stateByTag(tag).texture
+    def rmByTag(self, tag: str) -> None:
+        self.rmByState(self.stateByTag(tag))
 
     # by location:
 
-    def state_by_location(self, location: LocationArray) -> BoardState:
-        return self._look_for(f"LocationArray.compare(state.location, location)", location=location)[1]
-    def id_by_location(self, location: LocationArray) -> int:
-        return self.state_by_location(location).space_id
-    def tag_by_location(self, location: LocationArray) -> str:
-        return self.state_by_location(location).tag
-    def texture_by_location(self, location: LocationArray) -> LocationArray:
-        return self.state_by_location(location).texture
-    def rm_by_location(self, location: LocationArray) -> None:
-        self.rm_by_state(self.state_by_location(location))
+    def stateByLocation(self, location: LocationArray) -> BoardState:
+        return self.lookFor(f"LocationArray.compare(state.location, location)", location=location)[1]
+    def idByLocation(self, location: LocationArray) -> int:
+        return self.stateByLocation(location).space_id
+    def tagByLocation(self, location: LocationArray) -> str:
+        return self.stateByLocation(location).tag
+    def textureByLocation(self, location: LocationArray) -> LocationArray:
+        return self.stateByLocation(location).texture
+    def rmByLocation(self, location: LocationArray) -> None:
+        self.rmByState(self.stateByLocation(location))
 
     def create(self, tag: str, name: str | None = None) -> object:
         """name parameter defaults to tag"""
         name = tag if name is None else name
-        space_cls: type = ScriptHandler.create_class(name)
-        space_id: int = self.generate_random_space_id()
+        space_cls: type = ScriptHandler.createClass(name)
+        space_id: int = self.generateRandomSpaceId()
         class new_space_cls(space_cls.__class__):
             id = space_id
             def rm(self1):
-                self.rm_by_id(space_id)
+                self.rmById(space_id)
         space: new_space_cls = new_space_cls() # NOQA
         location_x: int = space.X
         location_y: int = space.Y
@@ -269,8 +260,8 @@ class Board:
         for y in range(-int(self.size.y), 0):
             ln = [
                 str(self.bg)
-                if not self.state_taken(LocationArray.from_int(x, -y))
-                else str(self.state_taken(LocationArray.from_int(x, -y)).texture)
+                if not self.stateTaken(LocationArray.from_int(x, -y))
+                else str(self.stateTaken(LocationArray.from_int(x, -y)).texture)
                 for x in range(1, int(self.size.x) + 1)
             ]
             lns.append("".join(ln))

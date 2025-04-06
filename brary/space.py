@@ -50,21 +50,43 @@ class Piston:
     def __init__(self, board: "Board") -> None:
         self.board: "Board" = board
         self.pushes: int = 0
-    def push(self, space_id: int, key_or_offset: str | LocationOffset, distance: int = 1) -> None:
+    def push(self,
+        space_id: int,
+        key_or_offset: str | LocationOffset,
+        distance: int = 1,
+        destructive: bool | None = False,
+        cannot_go_there_warning: bool = False
+    ) -> LocationArray:
+        pushes_before: int = self.pushes
         for _ in range(distance):
             offset: LocationOffset = key_or_offset if isinstance(key_or_offset, LocationOffset) else LocationOffset.generate(key_or_offset)
-            old_location: LocationArray = self.board.location_by_id(space_id)
+            old_location: LocationArray = self.board.locationById(space_id)
             new_location: LocationArray = offset.apply(old_location)
-            self.board.StatePlacementOperator.ensure_location(self.board, new_location)
+            if cannot_go_there_warning and not self.board.StatePlacementOperator.checkLocationValidity(self.board, new_location):
+                break
+            self.board.StatePlacementOperator.ensureLocationValidity(self.board, new_location)
+            if self.board.stateTaken(new_location):
+                if destructive is True:
+                    ...
+                elif destructive is False:
+                    break
+                elif destructive is None:
+                    raise ValueError("non-destructive push attempt on occupied location.")
             self.board.StatePlacementOperator(
                 self.board,
                 space_id,
                 new_location,
-                self.board.tag_by_id(space_id),
-                self.board.texture_by_id(space_id)
+                self.board.tagById(space_id),
+                self.board.textureById(space_id)
             )
-            self.board.rm_by_id(space_id)
+            self.board.rmById(space_id)
             self.pushes += 1
+        pushes_after: int = self.pushes
+        elapsed_pushes: int = pushes_after - pushes_before
+        if cannot_go_there_warning and elapsed_pushes == 0:
+            print(f"{Fore.RED}cannot go there!{Style.RESET_ALL}")
+            time.sleep(0.4)
+        return new_location # NOQA
 class _SmClass:
     def __matmul__(self, other: int | float) -> tuple[int, int]:
         return int(other), int(other / 2)

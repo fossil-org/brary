@@ -15,7 +15,7 @@ class Currency:
     @classmethod
     def setup(cls, name: str) -> "Currency":
         sh: ScriptHandler = ScriptHandler()
-        currency: object = sh.create_class(name)
+        currency: object = sh.createClass(name)
         return cls(name, currency.S, currency.C)
     def apply(self, number: float, *, name: bool = False, sign: bool = True, color: bool = True) -> str:
         return (self.color.apply if color else str)(f"{self.sign if sign else ''}{number}{' '+self.name if name else ''}")
@@ -34,9 +34,9 @@ class TaxSystem:
     @classmethod
     def setup(cls, name: str) -> "TaxSystem":
         sh: ScriptHandler = ScriptHandler()
-        tax_system: object = sh.create_class(name)
+        tax_system: object = sh.createClass(name)
         return cls(name, tax_system.D, tax_system.A, tax_system.C, tax_system.H, tax_system.X, tax_system.F)
-    def when_unpaid_dno(self) -> None: # dno = do not overwrite (in class children)
+    def whenUnpaidDno(self) -> None: # dno = do not overwrite (in class children)
         self.times_effective += 1
         self.unpaid()
     def unpaid(self) -> None:
@@ -55,11 +55,11 @@ class Wallet:
         self.tp: int = tp
         if taxes:
             for tax in taxes:
-                self.add_tax(tax)
+                self.addTax(tax)
     @classmethod
     def setup(cls, name: str) -> "Wallet":
         sh: ScriptHandler = ScriptHandler()
-        wallet: object = sh.create_class(name)
+        wallet: object = sh.createClass(name)
         return cls(Currency.setup(wallet.V), wallet.A, [TaxSystem.setup(i) for i in wallet.T])
     def deposit(self, amount: float) -> None:
         self.amount += amount
@@ -97,7 +97,7 @@ class Wallet:
         if not tax.hidden:
             print(tax.color.apply(f"-{self.currency.apply(amount, color=False)}, ({tax.name}: {tax.description})"))
             time.sleep(delay)
-    def add_tax(self, tax: TaxSystem) -> None:
+    def addTax(self, tax: TaxSystem) -> None:
         self.taxes.append([tax, 1, 0])
     def __str__(self, **kwargs: Any) -> str:
         return self.currency.apply(self.amount, **kwargs)
@@ -112,7 +112,7 @@ class Item:
     @classmethod
     def setup(cls, name: str) -> "Item":
         sh: ScriptHandler = ScriptHandler()
-        item: object = sh.create_class(name)
+        item: object = sh.createClass(name)
         return cls(listing.N, listing.D, listing.E)
     def use(self, game: "Game", *, delay: float = 2.0) -> None:
         self.effect(game)
@@ -124,7 +124,7 @@ class ItemInventory:
     @classmethod
     def setup(cls) -> "ItemInventory":
         sh: ScriptHandler = ScriptHandler()
-        player: object = sh.create_class("Player")
+        player: object = sh.createClass("Player")
         return cls(Wallet.setup(player.W), [Item.setup(i) for i in player.I])
     def get(self, name: str, if_not_found: Callable | None = None) -> Item:
         for item in self.items:
@@ -148,18 +148,18 @@ class ShopItemListing:
         self.price: Wallet = price
         self.color: "ColorObject" = color
     @classmethod
-    def create_item(cls, name: str, description: str, effect: Callable, price: float, currency: Currency, color: "ColorObject") -> "ShopItemListing":
+    def createItem(cls, name: str, description: str, effect: Callable, price: float, currency: Currency, color: "ColorObject") -> "ShopItemListing":
         return cls(Item(name, description, effect), Wallet(currency, price), color)
     @classmethod
-    def from_function(cls, price: float, currency: Currency, color: "ColorObject") -> Callable:
+    def fromFunction(cls, price: float, currency: Currency, color: "ColorObject") -> Callable:
         def wrapper1(function: Callable) -> "ShopItemListing":
-            return cls.create_item(function.__name__.replace("_", " "), function.__doc__, function, price, currency, color)
+            return cls.createItem(function.__name__.replace("_", " "), function.__doc__, function, price, currency, color)
         return wrapper1
     @classmethod
     def setup(cls, name: str) -> "ShopItemListing":
         sh: ScriptHandler = ScriptHandler()
-        listing: object = sh.create_class(name)
-        return cls.create_item(listing.N if hasattr(listing, "N") else name, listing.D, listing.E, listing.P, Currency.setup(listing.V), listing.C)
+        listing: object = sh.createClass(name)
+        return cls.createItem(listing.N if hasattr(listing, "N") else name, listing.D, listing.E, listing.P, Currency.setup(listing.V), listing.C)
 
     def __str__(self) -> str:
         return (f"{self.color.apply(self.item.name)}\n"
@@ -183,7 +183,7 @@ class Shop:
     @classmethod
     def setup(cls, name: str) -> "Shop":
         sh: ScriptHandler = ScriptHandler()
-        shop: object = sh.create_class(name)
+        shop: object = sh.createClass(name)
         return cls(name, shop.C, [ShopItemListing.setup(i) for i in shop.I])
     def display(self, *, delay: float = 1.0) -> ShopItemListing:
         print(self.color.apply(f"{self.name}:"))
@@ -205,10 +205,10 @@ class Shop:
             else:
                 print(f"{Fore.RED}invalid choice{Style.RESET_ALL}")
     def send(self, game: "Game", command: str = "m", enabled: bool = True) -> "Shop":
-        game.new_shop(self, command)
-        game.toggle_shop(self, enabled)
+        game.newShop(self, command)
+        game.toggleShop(self, enabled)
         return self
 
-def new_item(name: str, shop_listing: bool = True) -> ShopItemListing:
+def newItem(name: str, shop_listing: bool = True) -> ShopItemListing:
     item: ShopItemListing = ShopItemListing.setup(name)
     return item if shop_listing else item.item

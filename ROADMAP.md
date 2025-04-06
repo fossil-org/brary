@@ -57,23 +57,44 @@
 - learn about board size in `HANDBOOK.md` (+)
 
 # brary pbr5 (2.4.2025)
-- bug fixes
-- more testing
-- ansi colors with `Color.ansi<codes>m`
-- `Color.brown`
-- - more colors will be added in the future
+- bug fixes (-)
+- more testing (-)
+- ansi colors with `Color.ansi<codes>m` (+)
+- `Color.brown` (+)
+- - more colors will be added in the future (+)
 
 # brary pbr6 (2.4.2025)
-- fixed ansi colors
-- added sign and color to item listings
-- other bug fixes
+- fixed ansi colors (+)
+- added sign and color to item listings (+)
+- other bug fixes (-)
+
+# brary pbr7 (6.4.2025)
+- bots (-)
+- future planning (+)
+- quality of life (+)
+- improved collisions (+)
+- fixed most internal errors (+)
 
 ## planned:
 - tax pay missed penalty (+)
 - debt (+)
 - income (+)
 - ways to earn money (+)
-- bots [coming next update!] (-)
 - game loop commands (-)
-- score (+)
 - game loop output (-)
+- hp (+)
+- stamina (+)
+- moves (+)
+- fights (+)
+- weapons (+)
+- pve battles (+)
+- status effects (+)
+- leveling (+)
+- xp (+)
+- skill points (+)
+- skill tree (+)
+- randomly generated shops (+)
+- missions (+)
+- dungeons (+)
+- different move sets (+)
+- pvp (+)

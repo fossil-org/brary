@@ -29,6 +29,12 @@
 - `T` - taxes
 - `V` - currency
 - `I` - items
+### bot shorthands:
+- `F` - from (location)
+- `P` - point/to (location)
+- `S` - speed
+- `T` - texture
+- `C` - color
 
 ## board size
 
